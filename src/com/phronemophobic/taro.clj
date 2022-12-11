@@ -4,6 +4,8 @@
             TarArchiveEntry
             TarArchiveInputStream
             TarArchiveOutputStream]
+           [org.apache.commons.compress.archivers.zip
+            UnixStat]
            [java.io
             ByteArrayOutputStream
             File
@@ -23,48 +25,70 @@
 
 (defn- add-tar-entry!
   [^TarArchiveOutputStream tar
-   {:keys [source ^String path ^int length]}]
+   {:keys [source ^String path ^int length directory?] :as entry}]
   (let [entry (doto (TarArchiveEntry. path)
-                (.setSize length))]
+                (.setSize length))
+        mode (get entry :mode
+                  (if directory?
+                    0755
+                    0644))]
+    (.setMode entry (if directory?
+                      (bit-or UnixStat/DIR_FLAG mode)
+                      (bit-or UnixStat/FILE_FLAG mode)))
+
     (.putArchiveEntry tar entry)
-    (with-open [in (io/input-stream source)]
-      (io/copy in tar :buffer-size 1024))
+    (when (not directory?)
+      (with-open [in (io/input-stream source)]
+        (io/copy in tar :buffer-size 1024)))
     (.closeArchiveEntry tar)))
 
+(defn- relative-path [base file]
+  (loop [;; since we're walking up the tree
+         ;; use a list to reverse
+         parts ()
+         file file]
+    (if (nil? file)
+      (throw (IllegalArgumentException. "file must be child of base."))
+      (if (= file base)
+        (clojure.string/join File/separatorChar
+                             parts)
+        (recur (conj parts (.getName file))
+               (.getParentFile file))))))
+
+(defn dir->sources [dir]
+  (eduction
+   (map (fn [^File f]
+          (let [path (relative-path dir f)
+                path (if (.isDirectory f)
+                       (str path File/separatorChar)
+                       path)]
+            {:source f
+             :directory? (.isDirectory f)
+             :path (str (.getName dir)
+                        File/separatorChar
+                        path)
+             :length (if (.isDirectory f)
+                       0
+                       (.length f))})))
+   (file-seq dir)))
+
 (defn write-tar!
-  [^OutputStream out sources]
+  "Write entries in dir to out."
+  [^OutputStream out dir]
   (with-open [tar (wrap-tar-stream out)]
-    (doseq [source sources]
+    (doseq [source (dir->sources dir)]
       (add-tar-entry! tar source))
     (.finish tar)))
 
 
 (defn write-tar-gz!
-  [^OutputStream out sources]
+  "Write entries in dir to out."
+  [^OutputStream out dir]
   (with-open [gz  (GZIPOutputStream. out)
               tar (wrap-tar-stream gz)]
-    (doseq [source sources]
+    (doseq [source (dir->sources dir)]
       (add-tar-entry! tar source))
     (.finish tar)))
-
-(defn tar
-  "Create a byte array representing a tar archive of the given sources.
-   Sources need to consist of a `:source` (anything that can be coerced via
-   io/input-stream), a `:length` and a `:path` (String)."
-  ^bytes [sources]
-  (with-open [out (ByteArrayOutputStream.)]
-    (write-tar! out sources)
-    (.toByteArray out)))
-
-(defn tar-gz
-  "Create a byte array representing a tar archive of the given sources.
-   Sources need to consist of a `:source` (anything that can be coerced via
-   io/input-stream), a `:length` and a `:path` (String)."
-  ^bytes [sources]
-  (with-open [out (ByteArrayOutputStream.)
-              gz  (GZIPOutputStream. out)]
-    (write-tar! gz sources)
-    (.toByteArray out)))
 
 ;; ## Extract TAR
 
