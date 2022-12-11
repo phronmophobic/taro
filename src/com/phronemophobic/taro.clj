@@ -1,6 +1,5 @@
-(ns into.docker.tar
-  (:require [into.log :as log]
-            [clojure.java.io :as io])
+(ns com.phronemophobic.taro
+  (:require [clojure.java.io :as io])
   (:import [org.apache.commons.compress.archivers.tar
             TarArchiveEntry
             TarArchiveInputStream
@@ -25,7 +24,6 @@
 (defn- add-tar-entry!
   [^TarArchiveOutputStream tar
    {:keys [source ^String path ^int length]}]
-  (log/debug "| <tar>   %s (%s) ..." path (log/as-file-size length))
   (let [entry (doto (TarArchiveEntry. path)
                 (.setSize length))]
     (.putArchiveEntry tar entry)
@@ -35,7 +33,6 @@
 
 (defn- write-tar!
   [^OutputStream out sources]
-  (log/debug "Creating TAR archive from %d files ..." (count sources))
   (with-open [tar (wrap-tar-stream out)]
     (doseq [source sources]
       (add-tar-entry! tar source))
@@ -79,7 +76,6 @@
      (doseq [^TarArchiveEntry e (tar-seq tar)
              :when (.isFile e)
              :let [path (.getName e)]]
-       (log/debug "| <untar>   %s" path)
        (write-fn path tar)))))
 
 (defn untar-seq
@@ -108,7 +104,6 @@
    (let [target (io/file path)]
      (when-not (.isDirectory target)
        (.mkdirs target))
-     (log/debug "Extracting TAR stream to '%s' ..." (.getPath target))
      (->> (fn [file-path tar]
             (let [out (file-fn target file-path)]
               (ensure-parent! out)
