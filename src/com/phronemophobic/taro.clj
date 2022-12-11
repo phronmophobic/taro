@@ -31,9 +31,18 @@
       (io/copy in tar :buffer-size 1024))
     (.closeArchiveEntry tar)))
 
-(defn- write-tar!
+(defn write-tar!
   [^OutputStream out sources]
   (with-open [tar (wrap-tar-stream out)]
+    (doseq [source sources]
+      (add-tar-entry! tar source))
+    (.finish tar)))
+
+
+(defn write-tar-gz!
+  [^OutputStream out sources]
+  (with-open [gz  (GZIPOutputStream. out)
+              tar (wrap-tar-stream gz)]
     (doseq [source sources]
       (add-tar-entry! tar source))
     (.finish tar)))
