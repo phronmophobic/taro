@@ -6,7 +6,14 @@ The implementation of this lib is essentially just an extraction of the `into.do
 
 ## Usage
 
+Only available as a git dep:
+```clojure
+io.github.phronmophobic/taro {:git/sha "d650e87307bf387b3d93071faf1ea5d96b64574c" :git/tag "v1.0"}
+```
+
 See `com.phronemophobic.taro` namespace.
+
+
 
 ## License
 
