@@ -8,7 +8,7 @@ The implementation of this lib is essentially just an extraction of the `into.do
 
 Only available as a git dep:
 ```clojure
-io.github.phronmophobic/taro {:git/sha "d650e87307bf387b3d93071faf1ea5d96b64574c" :git/tag "v1.0"}
+io.github.phronmophobic/taro {:git/sha "80ec6648f3dadd958d024b70d046d6db7e2e1cac" :git/tag "v1.1"}
 ```
 
 See `com.phronemophobic.taro` namespace.
